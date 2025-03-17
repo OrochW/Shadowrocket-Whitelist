@@ -2,7 +2,10 @@ import requests
 import re
 import time
 
+# 目标白名单 URL
 whitelist_url = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/white-list.sorl"
+
+# 添加 User-Agent 避免被拦截
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
     "Accept": "text/plain"
@@ -28,22 +31,34 @@ if pac_content is None:
     print("❌ 获取白名单失败！请检查 URL 或网络连接。")
     exit(1)
 
-# 调试：打印前 500 个字符检查格式
-print(pac_content[:500])
+# 打印前 500 个字符调试
+print("🔍 PAC文件预览:\n", pac_content[:500])
 
-# 可能需要调整解析逻辑
-domains = re.findall(r'shExpMatch\(url, "([^"]+)"\)', pac_content)
+# 解析域名
+domains = []
+for line in pac_content.split("\n"):
+    line = line.strip()
+    # 忽略空行和注释行
+    if not line or line.startswith("//") or line.startswith(";"):
+        continue
+    # 提取 PAC 规则中的域名
+    match = re.search(r'shExpMatch\(url, "([^"]+)"\)', line)
+    if match:
+        domain = match.group(1).replace("*", "").lstrip(".")
+        domains.append(domain)
+
+# 如果没有解析到任何域名，可能需要改进解析逻辑
 if not domains:
-    print("⚠️ 未提取到任何域名，尝试另一种解析方式")
-    domains = [line.strip() for line in pac_content.split("\n") if line.strip() and not line.startswith("#")]
-
-# 去除前缀 *
-cleaned_domains = [d.replace("*", "").lstrip(".") for d in domains]
+    print("⚠️ 未找到任何有效的域名！请检查解析规则。")
+    exit(1)
 
 # 生成 Shadowrocket 规则
 output_file = "shadowrocket.conf"
 with open(output_file, "w") as f:
-    for domain in cleaned_domains:
+    f.write("#!name=proxy_list\n")
+    f.write("#!homepage=https://github.com/GMOogway/shadowrocket-rules\n")
+    f.write("#!desc=Generated from SwitchyOmega PAC\n[Rule]\n")
+    for domain in domains:
         f.write(f"DOMAIN-SUFFIX,{domain},DIRECT\n")
 
-print(f"✅ 转换完成，共 {len(cleaned_domains)} 条规则！已保存至 {output_file}")
+print(f"✅ 转换完成，共 {len(domains)} 条规则！已保存至 {output_file}")
