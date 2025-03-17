@@ -24,4 +24,10 @@ if pac_content is None:
 domains = re.findall(r'shExpMatch\(url, "([^"]+)"\)', pac_content)
 cleaned_domains = [d.replace("*", "").lstrip(".") for d in domains]
 
- ▋
+# Step 3: 生成 Shadowrocket 规则
+output_file = "shadowrocket.conf"
+with open(output_file, "w") as f:
+    for domain in cleaned_domains:
+        f.write(f"DOMAIN-SUFFIX,{domain},DIRECT\n")
+
+print(f"✅ 转换完成，共 {len(cleaned_domains)} 条规则！已保存至 {output_file}")
