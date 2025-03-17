@@ -34,20 +34,20 @@ if pac_content is None:
 # 打印前 500 个字符调试
 print("🔍 PAC文件预览:\n", pac_content[:500])
 
-# 解析域名
+# 解析有效域名
 domains = []
 for line in pac_content.split("\n"):
     line = line.strip()
     # 忽略空行和注释行
     if not line or line.startswith("//") or line.startswith(";"):
         continue
-    # 提取 PAC 规则中的域名
-    match = re.search(r'shExpMatch\(url, "([^"]+)"\)', line)
+    # 匹配 "*.domain.com" 或 "domain.com"
+    match = re.match(r"^\*?\.?([a-zA-Z0-9.-]+\.[a-zA-Z]+)$", line)
     if match:
-        domain = match.group(1).replace("*", "").lstrip(".")
+        domain = match.group(1)
         domains.append(domain)
 
-# 如果没有解析到任何域名，可能需要改进解析逻辑
+# 如果没有解析到任何域名，报错退出
 if not domains:
     print("⚠️ 未找到任何有效的域名！请检查解析规则。")
     exit(1)
