@@ -31,31 +31,33 @@ if pac_content is None:
     print("❌ 获取白名单失败！请检查 URL 或网络连接。")
     exit(1)
 
-# 打印前 500 个字符调试
-print("🔍 PAC文件预览:\n", pac_content[:500])
-
-# 解析有效域名
-domains = []
+# **第一步：去除注释**
+cleaned_lines = []
 for line in pac_content.split("\n"):
     line = line.strip()
-    # 忽略空行和注释行
+    # 忽略空行和所有注释行
     if not line or line.startswith("//") or line.startswith(";"):
         continue
+    cleaned_lines.append(line)
+
+# **第二步：解析有效域名**
+domains = []
+for line in cleaned_lines:
     # 匹配 `*.domain.com` 或 `domain.com`
     match = re.match(r"^\*?\.?([a-zA-Z0-9.-]+\.[a-zA-Z]+)$", line)
     if match:
         domain = match.group(1)
-        # 过滤掉 `*.edu.*` 这种不完整的规则
+        # 过滤掉 `*.edu.*` 这种错误规则
         if domain.count(".") < 2 and "*" in line:
             continue
         domains.append(domain)
 
-# 如果没有解析到任何域名，报错退出
+# **如果没有解析到任何域名，报错退出**
 if not domains:
     print("⚠️ 未找到任何有效的域名！请检查解析规则。")
     exit(1)
 
-# 生成 Shadowrocket 规则
+# **第三步：生成 Shadowrocket 规则**
 output_file = "shadowrocket.conf"
 with open(output_file, "w") as f:
     f.write("#!name=proxy_list\n")
