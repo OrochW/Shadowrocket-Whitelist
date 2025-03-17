@@ -41,10 +41,13 @@ for line in pac_content.split("\n"):
     # 忽略空行和注释行
     if not line or line.startswith("//") or line.startswith(";"):
         continue
-    # 匹配 "*.domain.com" 或 "domain.com"
+    # 匹配 `*.domain.com` 或 `domain.com`
     match = re.match(r"^\*?\.?([a-zA-Z0-9.-]+\.[a-zA-Z]+)$", line)
     if match:
         domain = match.group(1)
+        # 过滤掉 `*.edu.*` 这种不完整的规则
+        if domain.count(".") < 2 and "*" in line:
+            continue
         domains.append(domain)
 
 # 如果没有解析到任何域名，报错退出
