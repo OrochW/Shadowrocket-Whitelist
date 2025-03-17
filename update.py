@@ -40,20 +40,23 @@ for line in pac_content.split("\n"):
     cleaned_lines.append(line)
 
 # **第二步：匹配有效域名**
-domains = []
+domains = set()  # 用 set 去重
 for line in cleaned_lines:
-    # 解析 `*.domain.com` 或 `*domain.com`
-    match = re.match(r"^\*?\.?([a-zA-Z0-9.-]+\.[a-zA-Z]+)$", line)
+    # 更宽松的匹配方式，支持各种可能的写法
+    match = re.search(r"([\w\.-]+\.[a-zA-Z]{2,})", line)
     if match:
         domain = match.group(1)
-        # 过滤掉 `*.edu.*` 这种情况
+        # **如果规则是 `*.randomtext.*` 这种，就跳过**
         if domain.endswith(".*"):
-            continue  # 直接跳过错误规则
-        domains.append(domain)
+            print(f"⚠️ 过滤掉无效域名：{domain}")
+            continue
+        domains.add(domain)
 
 # **如果没有解析到任何域名，报错退出**
 if not domains:
-    print("⚠️ 未找到任何有效的域名！请检查解析规则。")
+    print("❌ 未找到任何有效的域名！请检查 PAC 文件格式。")
+    print("📜 PAC 文件内容（前 20 行）：")
+    print("\n".join(cleaned_lines[:20]))  # 打印前 20 行，方便调试
     exit(1)
 
 # **第三步：生成 Shadowrocket 规则**
@@ -62,7 +65,7 @@ with open(output_file, "w") as f:
     f.write("#!name=proxy_list\n")
     f.write("#!homepage=https://github.com/GMOogway/shadowrocket-rules\n")
     f.write("#!desc=Generated from SwitchyOmega PAC\n[Rule]\n")
-    for domain in domains:
+    for domain in sorted(domains):  # 排序保证稳定
         f.write(f"DOMAIN-SUFFIX,{domain},DIRECT\n")
 
 print(f"✅ 转换完成，共 {len(domains)} 条规则！已保存至 {output_file}")
