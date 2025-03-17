@@ -3,7 +3,7 @@ import re
 import time
 
 # 目标白名单 URL
-whitelist_url = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/whitelist.pac"
+whitelist_url = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/white-list.sorl"
 
 # 添加 User-Agent 避免被拦截
 headers = {
