@@ -1,30 +1,29 @@
 import requests
 import re
-import time
 
-# Step 1: 获取最新的 SwitchyOmega 白名单
+# 目标 URL
 whitelist_url = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/whitelist.pac"
 
-def fetch_whitelist(url, retries=3, backoff_factor=2):
-    for i in range(retries):
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.text
-        else:
-            print(f"❌ 获取白名单失败！状态码: {response.status_code}，重试 {i+1}/{retries} 次")
-            time.sleep(backoff_factor * (i + 1))
-    return None
+# 添加 User-Agent 避免被拦截
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+}
 
-pac_content = fetch_whitelist(whitelist_url)
-if pac_content is None:
-    print("❌ 无法获取白名单，已尝试多次。")
+# 发送请求
+response = requests.get(whitelist_url, headers=headers)
+
+# 检查是否成功
+if response.status_code != 200:
+    print(f"❌ 获取白名单失败！HTTP 状态码: {response.status_code}")
     exit(1)
 
-# Step 2: 提取域名
+pac_content = response.text
+
+# 解析 PAC 规则
 domains = re.findall(r'shExpMatch\(url, "([^"]+)"\)', pac_content)
 cleaned_domains = [d.replace("*", "").lstrip(".") for d in domains]
 
-# Step 3: 生成 Shadowrocket 规则
+# 生成 Shadowrocket 规则
 output_file = "shadowrocket.conf"
 with open(output_file, "w") as f:
     for domain in cleaned_domains:
