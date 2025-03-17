@@ -8,10 +8,12 @@ from datetime import datetime
 WHITELIST_URL = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/white-list.sorl"
 ADBLOCK_URL = "https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockclash.list"
 OUTPUT_FILE = "shadowrocket.conf"
-USER_AGENT = "Mozilla/5.0 (compatible; Shadowrocket-Whitelist/1.0; +https://github.com/OrochW/Shadowrocket-Whitelist)"
+USER_AGENT = "Mozilla/5.0 (compatible; Shadowrocket-Merger/1.0; +https://github.com/OrochW/Shadowrocket-Whitelist)"
 
-# ====================== 固定配置模板 ======================
-FIXED_CONFIG = f"""#!name=Shadowrocket-Whitelist
+# ====================== 模块1：固定配置生成器 ======================
+def generate_general_config():
+    """生成固定头部配置"""
+    return f"""#!name=Shadowrocket-Merged
 #!desc=Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 [General]
@@ -33,140 +35,133 @@ localhost = 127.0.0.1
 [Rule]
 """
 
-# ====================== 工具函数 ======================
-def wildcard_to_cidr(ip_wildcard):
-    """将通配符IP转换为CIDR格式"""
-    try:
-        parts = ip_wildcard.split('.')
-        if len(parts) != 4:
+# ====================== 模块2：白名单处理器 ======================
+class WhitelistProcessor:
+    @staticmethod
+    def parse_ip(ip_wildcard):
+        """处理IP通配符 (如 192.168.*.* -> 192.168.0.0/16)"""
+        try:
+            parts = ip_wildcard.split('.')
+            if len(parts) != 4:
+                return None
+
+            cidr = 32
+            for i, part in enumerate(parts):
+                if part == '*':
+                    cidr = i * 8
+                    parts[i:] = ['0']*(4-i)
+                    break
+
+            network = ipaddress.ip_network('.'.join(parts) + '/' + str(cidr), strict=False)
+            return str(network)
+        except Exception as e:
+            print(f"⚠️ IP转换失败 {ip_wildcard}: {str(e)}")
             return None
 
-        cidr = 32
-        for i, part in enumerate(parts):
-            if part == '*':
-                cidr = i * 8
-                parts[i:] = ['0']*(4-i)
-                break
-
-        network = ipaddress.ip_network('.'.join(parts) + '/' + str(cidr), strict=False)
-        return str(network)
-    except Exception as e:
-        print(f"⚠️ IP转换失败 {ip_wildcard}: {str(e)}")
-        return None
-
-def is_valid_domain(domain):
-    """严格验证域名有效性"""
-    pattern = r"^([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$"
-    return re.match(pattern, domain) is not None
-
-# ====================== 规则处理器 ======================
-def process_whitelist():
-    """处理白名单规则"""
-    print("🔄 正在处理白名单规则...")
-    seen = set()
-    rules = []
-    
-    try:
-        resp = requests.get(WHITELIST_URL, headers={'User-Agent': USER_AGENT}, timeout=15)
-        resp.raise_for_status()
+    @classmethod
+    def get_rules(cls):
+        """获取并处理白名单规则"""
+        print("🔄 正在处理白名单规则...")
+        rules = set()
         
-        for line in resp.text.split('\n'):
-            line = line.strip()
-            if not line or line.startswith(('//', ';')):
-                continue
-
-            # 处理IP规则
-            if re.match(r"^(\d+|\*)(\.(\d+|\*)){3}$", line):
-                if cidr := wildcard_to_cidr(line):
-                    rule = f"IP-CIDR,{cidr},DIRECT"
-                    if rule not in seen:
-                        rules.append(rule)
-                        seen.add(rule)
-                continue
-
-            # 处理域名规则
-            domain = line.split('/')[0] if '/' in line else line
-            if is_valid_domain(domain):
-                rule = f"DOMAIN-SUFFIX,{domain},DIRECT"
-                if rule not in seen:
-                    rules.append(rule)
-                    seen.add(rule)
-    
-    except Exception as e:
-        print(f"⚠️ 白名单处理错误: {str(e)}")
-    
-    return rules
-
-def process_adblock():
-    """处理现成Shadowrocket规则"""
-    print("🔄 正在合并AdBlock规则...")
-    adblock_header = []
-    adblock_rules = []
-    seen = set()
-    
-    try:
-        resp = requests.get(ADBLOCK_URL, headers={'User-Agent': USER_AGENT}, timeout=15)
-        resp.raise_for_status()
-        
-        in_header = True
-        for line in resp.text.split('\n'):
-            line = line.strip()
+        try:
+            resp = requests.get(WHITELIST_URL, headers={'User-Agent': USER_AGENT}, timeout=15)
+            resp.raise_for_status()
             
-            # 提取注释头信息
-            if in_header:
-                if line.startswith('#'):
-                    adblock_header.append(line)
+            for line in resp.text.split('\n'):
+                line = line.strip()
+                if not line or line.startswith(('//', ';')):
                     continue
-                else:
-                    in_header = False
-                    adblock_header.append("# ================= 广告拦截规则 =================")
-            
-            # 处理有效规则
-            if line.startswith("DOMAIN-SUFFIX,"):
-                domain = line.split(',')[1].strip()
-                if is_valid_domain(domain):
-                    rule = f"DOMAIN-SUFFIX,{domain}"  # 保留原始格式
-                    if rule not in seen:
-                        adblock_rules.append(rule)
-                        seen.add(rule)
-    
-    except Exception as e:
-        print(f"⚠️ AdBlock规则处理错误: {str(e)}")
-    
-    return adblock_header, adblock_rules
 
-# ====================== 主生成逻辑 ======================
-def generate_config():
-    try:
-        # 处理各规则源
-        whitelist_rules = process_whitelist()
-        adblock_header, adblock_rules = process_adblock()
+                # 处理IP规则
+                if re.match(r"^(\d+|\*)(\.(\d+|\*)){3}$", line):
+                    if cidr := cls.parse_ip(line):
+                        rules.add(f"IP-CIDR,{cidr},DIRECT")
+                    continue
+
+                # 处理域名规则
+                domain = line.split('/')[0] if '/' in line else line
+                if re.match(r"^([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$", domain):
+                    rules.add(f"DOMAIN-SUFFIX,{domain},DIRECT")
+
+        except Exception as e:
+            print(f"⚠️ 白名单处理错误: {str(e)}")
         
-        # 生成配置文件
+        return sorted(rules)
+
+# ====================== 模块3：AdBlock处理器 ======================
+class AdBlockProcessor:
+    @staticmethod
+    def get_rules():
+        """处理AdBlock规则文件并添加REJECT策略"""
+        print("🔄 正在处理AdBlock规则...")
+        headers = []
+        rules = set()
+        
+        try:
+            resp = requests.get(ADBLOCK_URL, headers={'User-Agent': USER_AGENT}, timeout=15)
+            resp.raise_for_status()
+            
+            in_header = True
+            for line in resp.text.split('\n'):
+                line = line.strip()
+                
+                # 提取注释头
+                if in_header:
+                    if line.startswith('#'):
+                        headers.append(line)
+                        continue
+                    else:
+                        in_header = False
+                        headers.append("\n# ================= 广告拦截规则 =================")
+                
+                # 处理有效规则并添加REJECT
+                if line.startswith("DOMAIN-SUFFIX,"):
+                    parts = line.split(',')
+                    if len(parts) >= 2:
+                        domain = parts[1].split('#')[0].strip()
+                        if re.match(r"^([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$", domain):
+                            rules.add(f"{parts[0]},{domain},REJECT")
+
+        except Exception as e:
+            print(f"⚠️ AdBlock处理错误: {str(e)}")
+        
+        return headers, sorted(rules)
+
+# ====================== 主程序 ======================
+def main():
+    try:
+        # 生成各模块内容
+        general_config = generate_general_config()
+        whitelist_rules = WhitelistProcessor.get_rules()
+        adblock_headers, adblock_rules = AdBlockProcessor.get_rules()
+        
+        # 合并写入文件
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
             # 写入固定配置
-            f.write(FIXED_CONFIG)
+            f.write(general_config)
             
             # 写入白名单规则
-            f.write("# ================= 直连规则 =================\n")
+            f.write("# ================= 直连白名单 =================\n")
             f.write("\n".join(whitelist_rules))
             
             # 写入AdBlock规则
             f.write("\n\n")
-            f.write("\n".join(adblock_header))
+            f.write("\n".join(adblock_headers))
             f.write("\n")
             f.write("\n".join(adblock_rules))
             
-            # 最终兜底规则
+            # 最终规则
             f.write("\n\nFINAL,PROXY")
         
-        print(f"✅ 生成成功！包含：")
+        print(f"✅ 合并成功！规则统计：")
         print(f"- 直连规则: {len(whitelist_rules)} 条")
-        print(f"- 广告规则: {len(adblock_rules)} 条")
-        
+        print(f"- 广告规则: {len(adblock_rules)} 条 (已添加REJECT)")
+        print(f"- 保留注释: {len(adblock_headers)} 行")
+
     except Exception as e:
         print(f"❌ 生成失败: {str(e)}")
         exit(1)
 
 if __name__ == "__main__":
-    generate_config()
+    main()
