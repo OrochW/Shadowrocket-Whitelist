@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: 检出仓库
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}  # 使用 PAT 进行身份验证
 
       - name: 设置 Python 环境
         uses: actions/setup-python@v3
@@ -24,9 +26,11 @@ jobs:
         run: python update.py
 
       - name: 提交更新
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}  # 使用 GitHub Token
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add shadowrocket.conf
           git commit -m "🔄 自动更新 Shadowrocket 白名单规则 $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          git push origin main
+          git push https://x-access-token:${GH_PAT}@github.com/OrochW/Shadowrocket-Whitelist.git main
