@@ -25,47 +25,109 @@ def fetch_whitelist(url, retries=3, delay=5):
         time.sleep(delay)
     return None
 
+def ip_wildcard_to_cidr(ip_wildcard):
+    """将 IP 通配符格式转换为 CIDR 表示法"""
+    parts = ip_wildcard.split('.')
+    if len(parts) != 4:
+        return None
+    
+    first_star = None
+    for i, part in enumerate(parts):
+        if part == '*':
+            first_star = i
+            break
+    else:
+        return None  # 没有通配符
+    
+    # 验证后续部分是否全为通配符
+    for j in range(first_star, 4):
+        if parts[j] != '*':
+            return None
+    
+    # 构建 CIDR
+    cidr = first_star * 8
+    ip_parts = []
+    for i in range(4):
+        if i < first_star:
+            ip_parts.append(parts[i])
+        else:
+            ip_parts.append('0')
+    
+    try:
+        # 验证 IP 有效性
+        for part in ip_parts:
+            num = int(part)
+            if num < 0 or num > 255:
+                return None
+    except ValueError:
+        return None
+    
+    return f"{'.'.join(ip_parts)}/{cidr}"
+
 # 获取白名单内容
 pac_content = fetch_whitelist(whitelist_url)
 if pac_content is None:
     print("❌ 获取白名单失败！请检查 URL 或网络连接。")
     exit(1)
 
-# **第一步：删除注释**
+# 第一步：清理注释和空行
 cleaned_lines = []
 for line in pac_content.split("\n"):
     line = line.strip()
-    if not line or line.startswith("//") or line.startswith(";"):  # 去掉注释和空行
+    if not line or line.startswith(("//", ";")):
         continue
     cleaned_lines.append(line)
 
-# **第二步：匹配有效域名**
-domains = set()  # 用 set 去重
-for line in cleaned_lines:
-    # 更宽松的匹配方式，支持各种可能的写法
-    match = re.search(r"([\w\.-]+\.[a-zA-Z]{2,})", line)
-    if match:
-        domain = match.group(1)
-        # **如果规则是 `*.randomtext.*` 这种，就跳过**
-        if domain.endswith(".*"):
-            print(f"⚠️ 过滤掉无效域名：{domain}")
-            continue
-        domains.add(domain)
+# 第二步：解析有效规则
+domains = set()
+ip_cidrs = set()
 
-# **如果没有解析到任何域名，报错退出**
-if not domains:
-    print("❌ 未找到任何有效的域名！请检查 PAC 文件格式。")
-    print("📜 PAC 文件内容（前 20 行）：")
-    print("\n".join(cleaned_lines[:20]))  # 打印前 20 行，方便调试
+for line in cleaned_lines:
+    # 优先处理 IP 通配符规则
+    if re.match(r'^(\d+|\*)(\.(\d+|\*)){3}$', line):
+        cidr = ip_wildcard_to_cidr(line)
+        if cidr:
+            ip_cidrs.add(cidr)
+            continue
+    
+    # 处理域名规则
+    match = re.search(r"(\*\.)?([\w\.-]+\.[a-zA-Z]{2,})", line)
+    if match:
+        wildcard, domain = match.groups()
+        
+        # 过滤包含后缀通配符的情况（如 .*）
+        if domain.endswith(".*"):
+            print(f"⚠️ 过滤无效域名: {domain}")
+            continue
+        
+        # 处理通配符域名
+        if wildcard:
+            domains.add(domain)
+        else:
+            domains.add(domain)
+
+# 验证解析结果
+if not domains and not ip_cidrs:
+    print("❌ 未找到任何有效规则！请检查文件格式。")
+    print("📜 文件前 20 行内容:")
+    print("\n".join(cleaned_lines[:20]))
     exit(1)
 
-# **第三步：生成 Shadowrocket 规则**
+# 第三步：生成 Shadowrocket 规则
 output_file = "shadowrocket.conf"
 with open(output_file, "w") as f:
-    f.write("#!name=proxy_list\n")
-    f.write("#!homepage=https://github.com/GMOogway/shadowrocket-rules\n")
-    f.write("#!desc=Generated from SwitchyOmega PAC\n[Rule]\n")
-    for domain in sorted(domains):  # 排序保证稳定
+    f.write("#!name=Proxy Whitelist\n")
+    f.write("#!desc=Generated from SwitchyOmega PAC\n")
+    f.write("[Rule]\n")
+    
+    # 写入域名规则
+    for domain in sorted(domains):
         f.write(f"DOMAIN-SUFFIX,{domain},DIRECT\n")
+    
+    # 写入 IP-CIDR 规则
+    for cidr in sorted(ip_cidrs):
+        f.write(f"IP-CIDR,{cidr},DIRECT\n")
 
-print(f"✅ 转换完成，共 {len(domains)} 条规则！已保存至 {output_file}")
+total_rules = len(domains) + len(ip_cidrs)
+print(f"✅ 转换成功！生成 {len(domains)} 条域名规则 + {len(ip_cidrs)} 条 IP 规则 = 总计 {total_rules} 条规则")
+print(f"📁 输出文件: {output_file}")
