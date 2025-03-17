@@ -8,7 +8,7 @@
 ## 📷 扫码导入 Shadowrocket
 使用 Shadowrocket 扫描下方二维码，自动导入配置：
 
-![QR Code](https://raw.githubusercontent.com/OrochW/Shadowrocket-Whitelist/main/shadowrocket-qrcode.png)
+![QR Code](https://raw.githubusercontent.com/OrochW/Shadowrocket-Whitelist/main/qrcode.png)
 
 ## 📌 使用方法
 1. **点击上方链接下载 `shadowrocket.conf`**
