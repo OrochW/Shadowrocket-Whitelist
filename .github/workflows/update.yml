@@ -1,0 +1,32 @@
+name: Update Shadowrocket Whitelist
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # 每天 00:00 UTC 运行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v3
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.x"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 运行脚本
+        run: python update.py
+
+      - name: 提交更新
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add shadowrocket.conf
+          git commit -m "🔄 自动更新 Shadowrocket 白名单规则 $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git push origin main
