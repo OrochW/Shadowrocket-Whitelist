@@ -31,25 +31,24 @@ if pac_content is None:
     print("❌ 获取白名单失败！请检查 URL 或网络连接。")
     exit(1)
 
-# **第一步：去除注释**
+# **第一步：删除注释**
 cleaned_lines = []
 for line in pac_content.split("\n"):
     line = line.strip()
-    # 忽略空行和所有注释行
-    if not line or line.startswith("//") or line.startswith(";"):
+    if not line or line.startswith("//") or line.startswith(";"):  # 去掉注释和空行
         continue
     cleaned_lines.append(line)
 
-# **第二步：解析有效域名**
+# **第二步：匹配有效域名**
 domains = []
 for line in cleaned_lines:
-    # 匹配 `*.domain.com` 或 `domain.com`
+    # 解析 `*.domain.com` 或 `*domain.com`
     match = re.match(r"^\*?\.?([a-zA-Z0-9.-]+\.[a-zA-Z]+)$", line)
     if match:
         domain = match.group(1)
-        # 过滤掉 `*.edu.*` 这种错误规则
-        if domain.count(".") < 2 and "*" in line:
-            continue
+        # 过滤掉 `*.edu.*` 这种情况
+        if domain.endswith(".*"):
+            continue  # 直接跳过错误规则
         domains.append(domain)
 
 # **如果没有解析到任何域名，报错退出**
