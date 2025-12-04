@@ -5,17 +5,22 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 0 * * *"  # 每天 00:00 UTC 运行
-  workflow_dispatch:  # 允许手动触发
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
       - name: 检出仓库
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GH_PAT }}  # 使用 PAT 进行身份验证
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
 
       - name: 设置 Python 环境
         uses: actions/setup-python@v3
@@ -28,9 +33,14 @@ jobs:
       - name: 运行脚本
         run: python update.py
 
+      - name: 调试：查看文件是否生成
+        run: |
+          ls -al
+          cat shadowrocket.conf || echo "shadowrocket.conf not found"
+
       - name: 提交更新
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}  # 使用 GitHub Token
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
