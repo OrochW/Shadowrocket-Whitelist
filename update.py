@@ -1,6 +1,7 @@
 import requests
 import re
 import ipaddress
+import hashlib
 
 WHITELIST_URL = "https://raw.githubusercontent.com/entr0pia/SwitchyOmega-Whitelist/master/white-list.sorl"
 OUTPUT_FILE = "shadowrocket.conf"
@@ -26,7 +27,7 @@ def wildcard_to_cidr(ip_wildcard):
         if j < i:
             base_ip.append(parts[j])
         else:
-            base_ip.append('0' if j > i else '0')  # 处理连续通配符
+            base_ip.append('0')
     
     try:
         network = ipaddress.ip_network(f"{'.'.join(base_ip)}/{cidr}", strict=False)
@@ -38,17 +39,14 @@ def wildcard_to_cidr(ip_wildcard):
 def parse_domain(line):
     line = line.strip().lower()
     
-    # 处理通配符前缀
     if line.startswith('*.'):
         domain = line[2:]
         if re.match(r"^([a-z0-9-]+\.)*[a-z]{2,}$", domain):
             return f"DOMAIN-SUFFIX,{domain}"
     
-    # 处理精确域名
     elif re.match(r"^([a-z0-9-]+\.)+[a-z]{2,}$", line):
         return f"DOMAIN,{line}"
     
-    # 处理关键词匹配
     elif '*' in line:
         keyword = line.replace('*', '').strip('.')
         if keyword:
@@ -61,6 +59,9 @@ def generate_rules():
         # 获取原始规则
         raw = requests.get(WHITELIST_URL, headers={"User-Agent": USER_AGENT}, timeout=15).text
         
+        # 生成上游 hash
+        upstream_hash = hashlib.md5(raw.encode()).hexdigest()
+        
         direct_rules = []
         seen = set()  # 防重复
         
@@ -69,7 +70,7 @@ def generate_rules():
             if not line or line.startswith(('//', ';')):
                 continue
 
-            # 处理IP规则
+            # IP规则
             if re.match(r"^(\d+|\*)(\.(\d+|\*)){3}$", line):
                 cidr = wildcard_to_cidr(line)
                 if cidr and cidr not in seen:
@@ -77,14 +78,15 @@ def generate_rules():
                     seen.add(cidr)
                 continue
 
-            # 处理域名规则
+            # 域名规则
             rule = parse_domain(line)
             if rule and rule not in seen:
                 direct_rules.append(rule)
                 seen.add(rule)
 
-        # 写入配置文件（确保顺序正确）
+        # 写入配置文件
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+            f.write(f"# Upstream MD5: {upstream_hash}\n")
             f.write("#!name=AutoWhitelist\n")
             f.write("[Rule]\n")
             
@@ -103,7 +105,7 @@ def generate_rules():
             # 最终规则（必须最后）
             f.write("\nFINAL,PROXY")
 
-        print(f"✅ 生成成功！包含 {len(direct_rules)} 条直连规则")
+        print(f"✅ 生成成功！包含 {len(direct_rules)} 条直连规则，Upstream hash: {upstream_hash}")
         
     except Exception as e:
         print(f"❌ 生成失败: {str(e)}")
