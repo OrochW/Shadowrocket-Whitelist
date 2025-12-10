@@ -14,7 +14,7 @@
 
 ## 📱 自动更新（iOS快捷指令）
 
-一键配置每日自动更新规则：  
+一键配置每日自动更新规则：
 [🔥 获取快捷指令](https://www.icloud.com/shortcuts/7323c4ebc30c4e7095184d766177a118)
 
 **功能说明**：
@@ -32,13 +32,24 @@
 ## 🛠️ 使用方法
 
 1. **初次使用**：
-   - 下载规则文件 或 扫码导入
-   - 打开 Shadowrocket → 配置 → 启用本规则
+   - 下载规则文件 或 扫码导入
+   - 打开 Shadowrocket → 配置 → 启用本规则
 
 2. **日常维护**：
-   - iOS用户：通过快捷指令自动更新
-   - 其他用户：重新下载规则文件
+   - iOS用户：通过快捷指令自动更新
+   - 其他用户：重新下载规则文件
 
 3. **验证更新**：
-   ```text
-   Shadowrocket → 日志 → 查看 "Last update" 时间戳
+   ```text
+   Shadowrocket → 日志 → 查看 "Last update" 时间戳
+   ```
+
+## 自用机场推荐 ✈️
+
+点击下方图片即可跳转注册页面：
+
+<a href="https://xn--mesv7f5toqlp.xyz/register?code=X9hIz9Vc">
+    <img src="https://github.com/user-attachments/assets/c65d3852-c6de-4dc4-88a8-0d307ce23356" alt="自用机场" />
+</a>
+
+**注册链接：** `https://xn--mesv7f5toqlp.xyz/register?code=X9hIz9Vc`
