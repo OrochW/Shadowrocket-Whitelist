@@ -52,4 +52,4 @@
     <img src="https://github.com/user-attachments/assets/c65d3852-c6de-4dc4-88a8-0d307ce23356" alt="自用机场" />
 </a>
 
-**注册链接：** `https://xn--mesv7f5toqlp.xyz/register?code=X9hIz9Vc`
+**注册链接：** [点击注册](https://xn--mesv7f5toqlp.xyz/register?code=X9hIz9Vc)
